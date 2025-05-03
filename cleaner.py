@@ -47,7 +47,7 @@ class DirectoryCleaner:
         self._setup_logging()
 
 
-        """ Processing RUles"""
+        """ Processing Rules"""
 
         self.rules = [{
             '.csv':'archive',
@@ -70,4 +70,25 @@ class DirectoryCleaner:
                      os.makedirs(rule['destination'], exist_ok=True)
                      
 
-    
+    def _setup_logging(self):
+         """Configures the Class logging system"""
+         self.logger = logging.getLogger('DirectoryCleaner')
+         self.logger-setLevel(logging.INFO)
+
+         # Logging file handler
+         log_dir = os.path.join(self.archive_base_dir, 'logs')
+         os.makedirs(log_dir, exist_ok=True)
+
+         log_file = os.path.join(log_dir, f'cleaner_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log')
+         file_handler = logging.StreamHandler() 
+
+         console_handler = logging.StreamHandler()
+
+         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+         file_handler.setFormatter(formatter)
+         console_handler.setFormatter(formatter)
+
+         self.logger.addHandler(file_handler)
+         self.logger.addHandler(console_handler)
+
+         

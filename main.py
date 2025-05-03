@@ -1,4 +1,8 @@
+import cleaner
+
 def main():
+
+
     print("Hello from file-cleaner!")
 
 

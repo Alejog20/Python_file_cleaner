@@ -1,7 +1,7 @@
 [project]
 name = "file-cleaner"
 version = "0.1.0"
-description = "Add your description here"
+description = "A python cleaner project for downloads folder"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
