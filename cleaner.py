@@ -91,4 +91,85 @@ class DirectoryCleaner:
          self.logger.addHandler(file_handler)
          self.logger.addHandler(console_handler)
 
+
+    def add_rule(self, pattern, action, destination=None):
+         """
          
+         Adds a rule to handle files based on name patterns
+
+         Args:
+            pattern (str) : Name pattern on filenames that need to be handled differently
+            action(str) : Action to be done ('move','ignore','delete')
+            destination (str) : Folder destination (only for action = 'move' )
+         
+         """
+
+         rule = {
+              'pattern': re.compile(pattern, re.IGNORECASE),
+              'action' : action
+         }
+
+         if action == 'move' and destination:
+              rule['destination'] = destination
+              os.makedirs(destination, exist_ok=True)
+              
+         self.name_rules.append(rule)
+         self.logger.info(f'Name rule added: {pattern} -> {action}')
+
+
+    def _get_file_info(self, file_path):
+         """
+         Gets relevant info on a file
+
+         Args: 
+            file_path (str) : File path
+
+        Returns: 
+            dict: File info        
+         
+         """
+         try:
+              stat_info = os.stat(file_path)
+
+              #Get extension
+              _, ext = os.path.splitext(file_path)
+
+              return {
+                   'path': file_path,
+                   'name': os.path.basename(file_path),
+                   'extension': ext.lower(),
+                   'size': stat_info.st_size,
+                   'modified': datetime.datetime.fromtimestamp(stat_info.st_mtime),
+                   'created' : datetime.datetime.fromtimestamp(stat_info.st_ctime)
+              }
+         
+         except Exception as e:
+              self.logger.error(f'Error while getting file info {file_path}:{e}')
+              return None
+              
+
+    def _process_file(self, file_info):
+         
+         """
+         
+        Process a file based on the configured rules
+         
+        Args:
+        file_info (dict) : Info on the file
+
+        Returns: 
+        str: Action done ('archived','deleted','moved', 'ignored')
+
+        
+        """
+         for rule in self.name_rules:
+            if rule['pattern'].search(file_info['name']):
+                if rule['action'] == 'move':
+                    self.move_file(file_info, rule['destination'])
+                    return 'moved'
+                elif rule['action'] === 'delete':
+                    self._delete_file(file_info)
+                    return 'deleted'
+                else:
+                    return 'ignored'
+            
