@@ -172,4 +172,43 @@ class DirectoryCleaner:
                     return 'deleted'
                 else:
                     return 'ignored'
+
+        # Verify ext rules
+
+         if file_info['extension'] in self.rules:
+            action = self.rules[file_info['extension']]
+
+            if action == 'archive':
+                self._archive_file()  
+                return 'archived'
+            elif action == 'delete':
+                self._delete_file(file_info)
+                return 'deleted'
+            else:  
+                return 'ignored'
+         else:
+            return 'ignored'
             
+
+    def _archive_file(self, file_info):
+        """
+        Archives a file based on its extension
+
+        Args:
+            file_info (dict): File info
+        
+        """
+
+        ext_dir = os.path.join(self.archive_base_dir, file_info['extension'][1:].upper())
+        os.makedirs(ext_dir, exist_ok = True)
+
+        # File destiny
+        destination = os.path.join(ext_dir, file_info['name'])
+
+        if os.path.exists(destination):
+             bas_name, ext = os.path.splitext(file_info['name'])
+             timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+             new_name = f'{base_name}_{timestamp}{ext}'
+             destination = os.path.join(ext_dir, new_name)
+
+

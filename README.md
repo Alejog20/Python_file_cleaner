@@ -1,6 +1,6 @@
 ## Python file organizer
 
-###This project was mainly develped to help me have my machine's disk in optim conditions given the amount of files I work with on a daily basis. 
+This project was mainly developed in aims to help me have my machine's disk in optim conditions given the amount of files I work with on a daily basis. 
 
 ## Functionality
 1. Make sure to modify the path and cleaning rules accordingly. 
