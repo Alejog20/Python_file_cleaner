@@ -212,3 +212,197 @@ class DirectoryCleaner:
              destination = os.path.join(ext_dir, new_name)
 
 
+        try:
+            shutil.move(file_info['path'], destination)
+            self.logger.info(f'Archived file {file_info['path']} -> {destination}')
+        except Exception as e:
+            self.logger.error(f'Error while archiving {file_info['path']}: {e}')
+
+
+    def _move_file(self, file_info, destination):
+
+        """
+        Moves a file to a specific destination
+
+        Args:
+            file_info (dict) : File information
+            destination (str) : Destination directory
+        
+        """
+
+        dest_path = os.path.join(destination, file_info['name'])
+
+        if os.path.exists(dest_path):
+            base_name, ext = os.path.splitext(file_info['name'])
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            new_name = f"{base_name}_{timestamp}{ext}"
+            dest_path = os.path.join(destination, new_name)
+        
+        # Mover el archivo
+        try:
+            shutil.move(file_info["path"], dest_path)
+            self.logger.info(f"Archivo movido: {file_info['path']} -> {dest_path}")
+        except Exception as e:
+            self.logger.error(f"Error al mover {file_info['path']}: {e}")
+    
+    def _delete_file(self, file_info):
+        """
+        Elimina un archivo.
+        
+        Args:
+            file_info (dict): Información del archivo
+        """
+        try:
+            os.remove(file_info["path"])
+            self.logger.info(f"Archivo eliminado: {file_info['path']}")
+        except Exception as e:
+            self.logger.error(f"Error al eliminar {file_info['path']}: {e}")
+    
+    def clean_directory(self, older_than_days=None):
+        """
+        Limpia el directorio objetivo según las reglas configuradas.
+        
+        Args:
+            older_than_days (int, optional): Solo procesar archivos más antiguos 
+                                            que este número de días
+        
+        Returns:
+            dict: Estadísticas de la operación
+        """
+        self.logger.info(f"Iniciando limpieza de {self.target_directory}")
+        
+        stats = {
+            "total": 0,
+            "archived": 0,
+            "deleted": 0,
+            "moved": 0,
+            "ignored": 0,
+            "errors": 0
+        }
+        
+        cutoff_date = None
+        if older_than_days is not None:
+            cutoff_date = datetime.datetime.now() - datetime.timedelta(days=older_than_days)
+            self.logger.info(f"Procesando solo archivos anteriores a {cutoff_date}")
+        
+        # Procesar cada archivo en el directorio
+        for filename in os.listdir(self.target_directory):
+            try:
+                file_path = os.path.join(self.target_directory, filename)
+                
+                # Ignorar directorios
+                if os.path.isdir(file_path):
+                    continue
+                
+                # Obtener información del archivo
+                file_info = self._get_file_info(file_path)
+                if file_info is None:
+                    stats["errors"] += 1
+                    continue
+                
+                stats["total"] += 1
+                
+                # Verificar antigüedad si corresponde
+                if cutoff_date and file_info["modified"] > cutoff_date:
+                    stats["ignored"] += 1
+                    continue
+                
+                # Procesar archivo
+                result = self._process_file(file_info)
+                stats[result] += 1
+                
+            except Exception as e:
+                self.logger.error(f"Error procesando {filename}: {e}")
+                stats["errors"] += 1
+        
+        # Registrar estadísticas
+        self.logger.info(f"Limpieza completada. Estadísticas: {stats}")
+        return stats
+    
+    def get_directory_stats(self, directory=None):
+        """
+        Obtiene estadísticas del directorio.
+        
+        Args:
+            directory (str, optional): Directorio a analizar. 
+                                      Si es None, se usa target_directory.
+                                      
+        Returns:
+            dict: Estadísticas del directorio
+        """
+        if directory is None:
+            directory = self.target_directory
+            
+        stats = {
+            "total_files": 0,
+            "total_size": 0,
+            "by_extension": {}
+        }
+        
+        # Procesar cada archivo en el directorio
+        for filename in os.listdir(directory):
+            file_path = os.path.join(directory, filename)
+            
+            # Ignorar directorios
+            if os.path.isdir(file_path):
+                continue
+                
+            # Obtener información del archivo
+            file_info = self._get_file_info(file_path)
+            if file_info is None:
+                continue
+                
+            stats["total_files"] += 1
+            stats["total_size"] += file_info["size"]
+            
+            # Contar por extensión
+            ext = file_info["extension"]
+            if ext not in stats["by_extension"]:
+                stats["by_extension"][ext] = {
+                    "count": 0,
+                    "size": 0
+                }
+            
+            stats["by_extension"][ext]["count"] += 1
+            stats["by_extension"][ext]["size"] += file_info["size"]
+        
+        # Convertir tamaño a MB
+        stats["total_size_mb"] = stats["total_size"] / (1024 * 1024)
+        
+        for ext in stats["by_extension"]:
+            stats["by_extension"][ext]["size_mb"] = stats["by_extension"][ext]["size"] / (1024 * 1024)
+            
+        return stats
+
+# Clase más específica para la carpeta de descargas
+class DownloadsCleaner(DirectoryCleaner):
+    """
+    Clase especializada para limpiar la carpeta de descargas con configuraciones predefinidas.
+    """
+    
+    def __init__(self):
+        """Inicializa el limpiador de descargas con configuraciones predefinidas."""
+        super().__init__(target_directory=os.path.expanduser("~/Downloads"))
+        
+        # Configurar reglas específicas para descargas
+        self.rules = {
+            ".csv": "archive",
+            ".txt": "archive",
+            ".xml": "archive",
+            ".pdf": "delete",
+            ".xls": "delete",
+            ".xlsx": "delete",
+            ".jpg": "archive",
+            ".png": "archive",
+            ".exe": "delete",
+            ".msi": "delete",
+            ".zip": "archive",
+            ".rar": "archive"
+        }
+        
+        # Crear carpeta EPAY
+        epay_dir = os.path.join(self.archive_base_dir, "EPAY")
+        os.makedirs(epay_dir, exist_ok=True)
+        
+        # Regla para archivos EPAY
+        self.add_name_rule(r"EPAY", "move", epay_dir)
